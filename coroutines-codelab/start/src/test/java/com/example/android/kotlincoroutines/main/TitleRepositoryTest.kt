@@ -17,6 +17,14 @@
 package com.example.android.kotlincoroutines.main
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.example.android.kotlincoroutines.fakes.MainNetworkCompletableFake
+import com.example.android.kotlincoroutines.fakes.MainNetworkFake
+import com.example.android.kotlincoroutines.fakes.TitleDaoFake
+import com.google.common.truth.Truth
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Rule
 import org.junit.Test
 
@@ -26,13 +34,38 @@ class TitleRepositoryTest {
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @Test
-    fun whenRefreshTitleSuccess_insertsRows() {
+    fun whenRefreshTitleSuccess_insertsRows() = runBlockingTest {
         // TODO: Write this test
+        val titleDao = TitleDaoFake("title")
+        val subject  = TitleRepository(
+                MainNetworkFake("OK"),
+                titleDao
+        )
+
+        subject.refreshTitle()
+        Truth.assertThat(titleDao.nextInsertedOrNull()).isEqualTo("OK")
+        // compiler error due to not being in a coroutine
+//        subject.refreshTitle()
+        // will sometimes fail due to .launch returning immediately and
+        // executing the same time as the rest of the test
+//        GlobalScope.launch {
+//            subject.refreshTitle()
+//        }
     }
 
     @Test(expected = TitleRefreshError::class)
-    fun whenRefreshTitleTimeout_throws() {
+    fun whenRefreshTitleTimeout_throws() = runBlockingTest {
         // TODO: Write this test
-        throw TitleRefreshError("Remove this – made test pass in starter code", null)
+        val network = MainNetworkCompletableFake()
+        val subject = TitleRepository(
+                network,
+                TitleDaoFake("title")
+        )
+
+        launch {
+            subject.refreshTitle()
+        }
+
+        advanceTimeBy(5_000)
     }
 }
